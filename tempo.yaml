@@ -1,7 +1,4 @@
-# Simple, single-binary Tempo config with local storage
-# Ref: Tempo configuration docs
-
-stream_over_http_enabled: true
+auth_enabled: false
 
 server:
   http_listen_port: 3200
@@ -10,17 +7,19 @@ distributor:
   receivers:
     otlp:
       protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
         http:
-        grpc
+          endpoint: 0.0.0.0:4318
 
 ingester:
-  max_block_bytes: 1000000
+  trace_idle_period: 10s
   max_block_duration: 5m
 
 compactor:
   compaction:
-    # Retention time for trace blocks (old data auto-delete)
-    block_retention: ${TEMPO_RETENTION:-15d}
+    # demo lab: 1h; change via TEMPO_RETENTION env if needed
+    block_retention: 1h
 
 storage:
   trace:

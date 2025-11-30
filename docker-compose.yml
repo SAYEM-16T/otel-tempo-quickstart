@@ -2,37 +2,42 @@ version: "3.9"
 
 services:
   otel-gateway:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:0.140.1
     container_name: otel-gateway
     command: ["--config=/etc/otelcol/otel-gateway.yaml"]
     volumes:
       - ./otel-gateway.yaml:/etc/otelcol/otel-gateway.yaml:ro
     ports:
+      # Apps from other servers hit these
       - "${OTEL_GATEWAY_OTLP_GRPC_PORT:-4317}:4317"
       - "${OTEL_GATEWAY_OTLP_HTTP_PORT:-4318}:4318"
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.9.0
     container_name: tempo
     command:
       - "-config.file=/etc/tempo/tempo.yaml"
-      - "-config.expand-env=true"      # env var use korte parbo config e
+      - "-config.expand-env=true"
     environment:
-      - TEMPO_RETENTION=${TEMPO_RETENTION:-15d}
+      # demo: 1 diner retention, changeable via .env
+      - TEMPO_RETENTION=${TEMPO_RETENTION:-24h}
     volumes:
       - ./tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo-data:/var/tempo
     ports:
-      - "3200:3200"                   # Tempo HTTP API (Grafana e eta use hobe)
+      # HTTP API – optional but handy for debug
+      - "3200:3200"
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.3.0
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SERVER_DOMAIN=${MONITORING_HOST:-localhost}
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
