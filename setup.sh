@@ -37,6 +37,16 @@ detect_runtime() {
   fi
 }
 
+set_compose_files() {
+  # always include core stack
+  COMPOSE_FILES="-f docker-compose.yml"
+
+  # if grafana override file exists, include it so stack runs together
+  if [[ -f docker-compose.grafana.yml ]]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.grafana.yml"
+  fi
+}
+
 require_env() {
   if [[ ! -f .env ]]; then
     echo "❌ .env file not found. Copy .env.example to .env and edit values."
@@ -47,16 +57,19 @@ require_env() {
 start_stack() {
   require_env
   detect_runtime
+  set_compose_files
 
-  echo "▶ Starting $PROJECT_NAME stack using $COMPOSE_CMD ..."
-  $COMPOSE_CMD up -d
+  echo "▶ Starting $PROJECT_NAME stack using $COMPOSE_CMD $COMPOSE_FILES ..."
+  $COMPOSE_CMD $COMPOSE_FILES up -d
 
   echo "⏳ Waiting 10s for services to warm up..."
   sleep 10
 
   echo "✅ Stack started."
   echo
-  echo "Grafana:  http://localhost:3000   (or http://\$MONITORING_HOST:3000)"
+  if [[ -f docker-compose.grafana.yml ]]; then
+    echo "Grafana:  http://localhost:3000   (or http://\$MONITORING_HOST:3000)"
+  fi
   echo "Tempo:    http://localhost:3200   (HTTP API)"
   echo "OTLP gRPC: localhost:${OTEL_GATEWAY_OTLP_GRPC_PORT:-4317}"
   echo "OTLP HTTP: localhost:${OTEL_GATEWAY_OTLP_HTTP_PORT:-4318}"
@@ -64,17 +77,20 @@ start_stack() {
 
 show_status() {
   detect_runtime
-  $COMPOSE_CMD ps
+  set_compose_files
+  $COMPOSE_CMD $COMPOSE_FILES ps
 }
 
 stop_stack() {
   detect_runtime
-  $COMPOSE_CMD down
+  set_compose_files
+  $COMPOSE_CMD $COMPOSE_FILES down
 }
 
 clean_only() {
   detect_runtime
-  $COMPOSE_CMD down -v
+  set_compose_files
+  $COMPOSE_CMD $COMPOSE_FILES down -v
 }
 
 clean_and_setup() {
